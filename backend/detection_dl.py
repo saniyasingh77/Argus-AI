@@ -1,8 +1,7 @@
+import os
 import numpy as np
-from tensorflow.keras.models import load_model
 
-# load trained deep learning model
-model = load_model("backend/activity_model.h5")
+from backend.config import MODEL_PATH
 
 # output classes
 labels = [
@@ -11,6 +10,25 @@ labels = [
     "Walking",
     "Moving"
 ]
+
+# The trained model is loaded lazily on first prediction so that importing
+# this module never crashes when the .h5 file is absent (e.g. in CI or a
+# freshly-built container before the model artifact is mounted).
+_model = None
+
+
+def _get_model():
+    global _model
+    if _model is None:
+        if not os.path.exists(MODEL_PATH):
+            raise FileNotFoundError(
+                f"Activity model not found at {MODEL_PATH}. "
+                "Train it with `python -m backend.train_dl_model` or mount "
+                "the artifact via ARGUS_MODEL_PATH."
+            )
+        from tensorflow.keras.models import load_model
+        _model = load_model(MODEL_PATH)
+    return _model
 
 def detect_activity_dl(landmarks):
 
@@ -24,7 +42,7 @@ def detect_activity_dl(landmarks):
     features = np.array(features)
 
     # deep learning prediction
-    pred = model.predict(
+    pred = _get_model().predict(
         features.reshape(1,-1),
         verbose=0
     )

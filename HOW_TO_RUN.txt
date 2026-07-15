@@ -1,0 +1,51 @@
+====================================================
+ ARGUS AI  —  How to run
+====================================================
+
+You need EITHER Docker Desktop OR Python 3.10+ installed.
+(Docker is the easiest — it needs no setup.)
+
+DEMO LOGINS
+  User:   demo@argus.ai   /  demo123
+  Admin:  admin@argus.ai  /  admin123
+
+----------------------------------------------------
+ OPTION A — Docker  (recommended, easiest)
+----------------------------------------------------
+1. Install Docker Desktop and open it (wait until it says "running").
+2. Unzip this folder.
+3. Open a terminal INSIDE this folder and run:
+
+       docker compose up --build
+
+4. Open your browser at:  http://localhost:5000
+5. To stop:  press Ctrl+C, then run:  docker compose down
+
+----------------------------------------------------
+ OPTION B — Python  (if you don't have Docker)
+----------------------------------------------------
+WINDOWS — open a terminal in this folder and run,
+one line at a time:
+
+       python -m venv .venv
+       .venv\Scripts\activate
+       pip install -r requirements.txt
+       python -m backend.api_server
+
+Then open:  http://127.0.0.1:5000
+To stop:  press Ctrl+C
+
+MAC / LINUX — same, but activate with:
+       source .venv/bin/activate
+
+----------------------------------------------------
+ NOTES
+----------------------------------------------------
+- The dashboard comes pre-filled with demo data so it
+  looks alive immediately.
+- "Live Monitoring" and "Video Analysis" need a real
+  webcam + the full AI libraries (requirements-ml.txt);
+  in a normal run they show a friendly message instead.
+- To deploy it online for free, see the "Deploy on
+  Render" section in README.md.
+====================================================

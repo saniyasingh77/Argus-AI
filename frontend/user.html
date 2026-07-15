@@ -1,176 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Argus AI</title>
-    <link rel="stylesheet" href="/static/style.css">
-
-    <style>
-        body {
-            background: #f4f6f9;
-        }
-
-        .navbar {
-            display: flex;
-            justify-content: space-between;
-            padding: 15px 30px;
-            background: #0077b6;
-            color: white;
-        }
-
-        .dashboard {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-top: 60px;
-        }
-
-        .card {
-            width: 250px;
-            padding: 20px;
-            background: white;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        button {
-            margin-top: 10px;
-            padding: 10px;
-            border: none;
-            background: #0077b6;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #023e8a;
-        }
-
-        input {
-            margin-top: 10px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard · Argus AI</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body>
+<div class="app" id="shell"></div>
 
-<!-- Navbar -->
-<div class="navbar">
-    <h2>Argus AI</h2>
-    <button onclick="logout()">Logout</button>
-</div>
-
-<!-- Dashboard -->
-<div class="dashboard">
-
-    <!-- Live Monitoring -->
-    <div class="card">
-        <h3>📡 Live Monitoring</h3>
-        <p>Start real-time patient tracking</p>
-        <button onclick="startMonitoring()">Start</button>
-    </div>
-
-    <!-- Upload Video -->
-    <div class="card">
-        <h3>🎥 Upload Video</h3>
-        <input type="file" id="videoFile">
-        <button onclick="uploadVideo()">Upload</button>
-    </div>
-
-    <!-- Reports -->
-    <div class="card">
-        <h3>📊 Reports</h3>
-        <button onclick="getReport()">View</button>
-    </div>
-
-</div>
-
-<!-- Script -->
+<script src="/static/app.js"></script>
 <script>
+  const user = requireAuth("user");
+  if (user) init();
 
-/* 🔐 Check login */
-if (localStorage.getItem("loggedIn") !== "true" || localStorage.getItem("role") !== "user") {
-    window.location.href = "/";
-}
+  function init() {
+    buildShell(user, [
+      { view: "overview", label: "Overview", icon: "grid" },
+      { view: "monitor", label: "Monitoring", icon: "monitor" },
+      { view: "reports", label: "Reports", icon: "list" },
+      { view: "alerts", label: "Alerts", icon: "bell" },
+    ]);
 
-/* 🚪 Logout */
-function logout() {
-    localStorage.clear();
-    window.location.href = "/";
-}
+    document.getElementById("content").innerHTML = `
+      <section class="view active" id="view-overview">
+        <div class="grid stats" id="stats"></div>
+        <div class="grid two" style="margin-top:18px">
+          <div class="card">
+            <div class="card-head"><div><h3>Recent Activity</h3><div class="sub">Latest detections</div></div>
+              <button class="btn btn-ghost" onclick="loadAll()">Refresh</button></div>
+            <div class="table-wrap"><table><thead><tr><th>Activity</th><th>Risk</th><th>When</th></tr></thead><tbody id="ovBody"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Risk Distribution</h3><div class="sub">All events</div></div></div>
+            <div class="chart-bars" id="chart"></div>
+          </div>
+        </div>
+      </section>
 
-/* ▶ Start Monitoring */
-function startMonitoring() {
-    fetch("http://127.0.0.1:5000/start")
-    .then(res => res.json())
-    .then(data => alert(data.message))
-    .catch(err => alert("Error starting monitoring"));
-}
+      <section class="view" id="view-monitor">
+        <div class="grid two">
+          <div class="card">
+            <div class="card-head"><div><h3>Live Monitoring</h3><div class="sub">Camera-based patient tracking</div></div></div>
+            <div class="monitor">
+              <div style="margin-bottom:12px"><span class="pulse" id="pulse"></span><b id="monText">Idle</b></div>
+              <button class="btn btn-primary btn-block" id="monBtn" onclick="startMonitoring()">Start Monitoring</button>
+              <p class="sub" style="margin-top:12px">Runs on a device with a webcam. In the cloud demo this shows how alerts trigger.</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Video Analysis</h3><div class="sub">Upload a clip to analyse</div></div></div>
+            <label class="dropzone" for="video"><div id="dzText">📹 Click to choose a video<br><span class="sub">MP4 · analysed with pose detection</span></div></label>
+            <input type="file" id="video" accept="video/*" class="hidden">
+            <button class="btn btn-primary btn-block mt-16" id="upBtn" onclick="uploadVideo()">Upload &amp; Analyse</button>
+          </div>
+        </div>
+      </section>
 
-/* 🎥 Upload Video */
-function uploadVideo() {
-    let file = document.getElementById("videoFile").files[0];
+      <section class="view" id="view-reports">
+        <div class="card">
+          <div class="card-head"><div><h3>Activity Report</h3><div class="sub">Full detection history</div></div>
+            <button class="btn btn-ghost" onclick="loadAll()">Refresh</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Activity</th><th>Risk</th><th>When</th></tr></thead><tbody id="repBody"></tbody></table></div>
+        </div>
+      </section>
 
-    if (!file) {
-        alert("Please select a video file");
-        return;
-    }
+      <section class="view" id="view-alerts">
+        <div class="card">
+          <div class="card-head"><div><h3>Emergency Alerts</h3><div class="sub">High-risk events needing attention</div></div></div>
+          <div id="alertsBox"></div>
+        </div>
+      </section>`;
 
-    let formData = new FormData();
-    formData.append("file", file);
-
-    fetch("http://127.0.0.1:5000/video", {
-        method: "POST",
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => alert(data.message))
-    .catch(err => alert("Upload failed"));
-}
-
-/* 📊 Get Report */
-function getReport() {
-
-    fetch("http://127.0.0.1:5000/report")
-    .then(response => response.json())
-    .then(data => {
-
-        if (data.error) {
-            alert(data.error);
-            return;
-        }
-
-        if (data.length === 0) {
-            alert("No report available.\nRun monitoring first.");
-            return;
-        }
-
-        let report = "===== PATIENT REPORT =====\n\n";
-
-        data.forEach((item, index) => {
-
-            report +=
-                (index + 1) + ". Activity : " + item.activity + "\n" +
-                "   Risk     : " + item.risk + "\n" +
-                "   Time     : " + item.time + "\n\n";
-
-        });
-
-        alert(report);
-
-    })
-    .catch(error => {
-
-        console.log(error);
-
-        alert("Unable to load report.");
-
+    loadAll();
+    document.getElementById("video").addEventListener("change", e => {
+      const f = e.target.files[0];
+      document.getElementById("dzText").innerHTML = f ? `✅ ${f.name}` : "📹 Click to choose a video";
     });
+  }
 
-}
+  async function loadAll() {
+    const [s, rep, al] = await Promise.all([api("/stats"), api("/report"), api("/alerts")]);
+    if (s.data) { renderStats(s.data); drawChart(s.data); }
+    if (rep.data) { renderRows("repBody", rep.data); renderRows("ovBody", rep.data.slice(0, 6)); }
+    if (al.data) renderAlerts(al.data);
+  }
+
+  function renderStats(s) {
+    const latest = s.latest ? s.latest.activity : "No data";
+    const tiles = [
+      { ic: ICONS.activity, cls: "", val: s.total_events, lbl: "Total Events" },
+      { ic: ICONS.alert, cls: "high", val: s.high, lbl: "High-Risk Alerts" },
+      { ic: ICONS.heart, cls: "medium", val: s.medium, lbl: "Needs Attention" },
+      { ic: ICONS.shield, cls: "low", val: latest, lbl: "Latest Status", small: true },
+    ];
+    document.getElementById("stats").innerHTML = tiles.map(t => `
+      <div class="card stat ${t.cls}"><div class="ic">${t.ic}</div>
+      <div><div class="val" style="${t.small ? 'font-size:1.15rem' : ''}">${t.val}</div><div class="lbl">${t.lbl}</div></div></div>`).join("");
+  }
+
+  function renderRows(id, rows) {
+    const body = document.getElementById(id);
+    if (!rows.length) { body.innerHTML = `<tr><td colspan="3">${emptyState("No activity recorded yet")}</td></tr>`; return; }
+    body.innerHTML = rows.map(r => `<tr><td><b>${r.activity}</b></td><td>${riskBadge(r.risk)}</td><td class="sub">${timeAgo(r.time)}</td></tr>`).join("");
+  }
+
+  function renderAlerts(rows) {
+    const box = document.getElementById("alertsBox");
+    if (!rows.length) { box.innerHTML = `<div class="empty">${ICONS.check}<div>All clear — no emergencies</div></div>`; return; }
+    box.innerHTML = rows.map(r => `<div class="row" style="justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+      <div><b>${r.activity}</b><div class="sub">${timeAgo(r.time)}</div></div>${riskBadge(r.risk)}</div>`).join("");
+  }
+
+  function drawChart(s) {
+    const items = [{ k: "low", label: "Low", v: s.low }, { k: "medium", label: "Medium", v: s.medium }, { k: "high", label: "High", v: s.high }];
+    const max = Math.max(1, ...items.map(i => i.v));
+    document.getElementById("chart").innerHTML = items.map(i => `<div class="bar-col"><div class="num">${i.v}</div>
+      <div class="bar ${i.k}" style="height:${Math.round(i.v / max * 100)}%"></div><div class="cap">${i.label}</div></div>`).join("");
+  }
+
+  async function startMonitoring() {
+    const btn = document.getElementById("monBtn"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+    const { ok, status, data } = await api("/start");
+    btn.disabled = false; btn.textContent = "Start Monitoring";
+    if (ok) { document.getElementById("pulse").classList.add("on"); document.getElementById("monText").textContent = "Monitoring active"; toast("Monitoring started", data.message || "", "ok"); }
+    else if (status === 501) { document.getElementById("monText").textContent = "Camera not available here"; toast("Cloud demo", "Live camera runs on a local device with a webcam.", "warn"); }
+    else toast("Could not start", (data && data.message) || "Server error", "err");
+  }
+
+  async function uploadVideo() {
+    const f = document.getElementById("video").files[0];
+    if (!f) return toast("No file", "Choose a video first", "warn");
+    const btn = document.getElementById("upBtn"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+    const fd = new FormData(); fd.append("file", f);
+    const { ok, status, data } = await api("/video", { method: "POST", body: fd });
+    btn.disabled = false; btn.textContent = "Upload & Analyse";
+    if (ok) toast("Processing", data.message || "", "ok");
+    else if (status === 501) toast("Cloud demo", "Video analysis needs the local ML stack.", "warn");
+    else toast("Upload failed", (data && data.message) || "Server error", "err");
+  }
 </script>
-
 </body>
 </html>

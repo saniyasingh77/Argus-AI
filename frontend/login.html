@@ -1,69 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Login</title>
-<link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login · Argus AI</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-
-<div class="container">
-
-  <div class="left">
-    
-    <p>Welcome to Argus AI 👁️
-
-Intelligent Patient Monitoring & Safety Platform</p>
+<div class="auth">
+  <div class="auth-brand">
+    <div id="brand"></div>
+    <div>
+      <div class="headline">Always watching.<br>Always protecting.</div>
+      <p class="tag">AI-powered patient monitoring that detects falls, immobility and
+        emergencies in real time — and alerts your care team instantly.</p>
+      <div class="points">
+        <div><span id="i1"></span> Real-time pose &amp; fall detection</div>
+        <div><span id="i2"></span> Instant WhatsApp &amp; email alerts</div>
+        <div><span id="i3"></span> Activity reports &amp; risk analytics</div>
+      </div>
+    </div>
+    <div style="opacity:.75;font-size:.85rem">© 2026 Argus AI · Patient Safety Platform</div>
   </div>
 
-  <div class="right">
-    <h2>Login</h2>
-    <p>No account? <a href="signup">Signup</a></p>
+  <div class="auth-form-wrap">
+    <div class="auth-card">
+      <h2>Welcome back</h2>
+      <p class="muted">Sign in to your monitoring dashboard.</p>
 
-    <form id="loginForm">
-      <input type="email" id="email" placeholder="Email" required>
-      <input type="password" id="password" placeholder="Password" required>
-      <button type="submit">Login</button>
-    </form>
+      <form id="form">
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="you@hospital.com" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-group">
+            <input type="password" id="password" placeholder="••••••••" required>
+            <button type="button" class="toggle" aria-label="Show password" onclick="togglePassword(this)" id="eye"></button>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" id="submit" type="submit">Sign in</button>
+      </form>
+
+      <p class="center mt-16 muted" style="font-size:.88rem">
+        New here? <a href="/signup">Create an account</a>
+      </p>
+
+      <div class="demo-hint">
+        <b>Demo logins</b> — <span class="fill" onclick="fill('demo@argus.ai','demo123')">User</span> ·
+        <span class="fill" onclick="fill('admin@argus.ai','admin123')">Admin</span><br>
+        demo@argus.ai / demo123 &nbsp;·&nbsp; admin@argus.ai / admin123
+      </div>
+    </div>
   </div>
-
 </div>
 
+<script src="/static/app.js"></script>
 <script>
-document.getElementById("loginForm").addEventListener("submit", function(e) {
-    e.preventDefault();
+  document.getElementById("brand").innerHTML = brandHTML();
+  document.getElementById("eye").innerHTML = ICONS.eye;
+  document.getElementById("i1").innerHTML = ICONS.check;
+  document.getElementById("i2").innerHTML = ICONS.check;
+  document.getElementById("i3").innerHTML = ICONS.check;
 
-    const email = document.getElementById("email").value;
+  function fill(email, pw) {
+    document.getElementById("email").value = email;
+    document.getElementById("password").value = pw;
+  }
+
+  const btn = document.getElementById("submit");
+  document.getElementById("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+    const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
 
-    fetch("/login", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email, password })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === "success") {
-            localStorage.setItem("loggedIn", "true");
-            localStorage.setItem("role", data.role);
-
-            if (data.role === "admin") {
-                window.location.href = "/admin";
-            } else {
-                window.location.href = "/user";
-            }
-        } else {
-            alert("Invalid login");
-        }
-    })
-    .catch(err => {
-        console.log(err);
-        alert("Server error");
+    const { ok, data } = await api("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
-});
-</script>
 
+    if (ok && data && data.status === "success") {
+      localStorage.setItem("loggedIn", "true");
+      localStorage.setItem("role", data.role);
+      localStorage.setItem("name", data.name || "User");
+      localStorage.setItem("email", data.email || email);
+      toast("Welcome back", data.name || "", "ok");
+      setTimeout(() => window.location.href = data.role === "admin" ? "/admin" : "/user", 500);
+    } else {
+      btn.disabled = false; btn.textContent = "Sign in";
+      toast("Login failed", (data && data.message) || "Check your credentials", "err");
+    }
+  });
+</script>
 </body>
 </html>

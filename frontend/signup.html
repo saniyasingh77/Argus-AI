@@ -1,63 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Signup</title>
-<link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign up · Argus AI</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-
-<div class="container">
-
-  <div class="left">
-    <h1>Argus AI 🏥</h1>
-    <p>Monitor patient health in real-time with AI insights</p>
+<div class="auth">
+  <div class="auth-brand">
+    <div id="brand"></div>
+    <div>
+      <div class="headline">Join the care<br>network.</div>
+      <p class="tag">Create your Argus AI account to monitor patients, review activity
+        reports and receive emergency alerts wherever you are.</p>
+      <div class="points">
+        <div><span id="i1"></span> Set up in seconds</div>
+        <div><span id="i2"></span> Secure, role-based access</div>
+        <div><span id="i3"></span> Works on any device</div>
+      </div>
+    </div>
+    <div style="opacity:.75;font-size:.85rem">© 2026 Argus AI · Patient Safety Platform</div>
   </div>
 
-  <div class="right">
-    <h2>Create Account</h2>
-    <p>Already have account? <a href="login.html">Login</a></p>
+  <div class="auth-form-wrap">
+    <div class="auth-card">
+      <h2>Create account</h2>
+      <p class="muted">Start monitoring in under a minute.</p>
 
-    <form id="signupForm">
-      <input type="text" id="name" placeholder="Full Name" required>
-      <input type="email" id="email" placeholder="Email" required>
-      <input type="password" id="password" placeholder="Password" required>
-      <input type="password" id="confirm" placeholder="Confirm Password" required>
+      <form id="form">
+        <div class="field">
+          <label for="name">Full name</label>
+          <input type="text" id="name" placeholder="Jane Doe" required>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="you@hospital.com" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-group">
+            <input type="password" id="password" placeholder="At least 4 characters" required>
+            <button type="button" class="toggle" aria-label="Show password" onclick="togglePassword(this)" id="eye1"></button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="confirm">Confirm password</label>
+          <div class="input-group">
+            <input type="password" id="confirm" placeholder="Re-enter password" required>
+            <button type="button" class="toggle" aria-label="Show password" onclick="togglePassword(this)" id="eye2"></button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="role">Account type</label>
+          <select id="role">
+            <option value="user">Care staff (User)</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-block" id="submit" type="submit">Create account</button>
+      </form>
 
-      <select id="role">
-        <option value="user">User</option>
-        <option value="admin">Admin</option>
-      </select>
-
-      <button type="submit">Sign Up</button>
-    </form>
+      <p class="center mt-16 muted" style="font-size:.88rem">
+        Already registered? <a href="/">Sign in</a>
+      </p>
+    </div>
   </div>
-
 </div>
 
+<script src="/static/app.js"></script>
 <script>
-document.getElementById("signupForm").addEventListener("submit", function(e) {
-    e.preventDefault();
+  document.getElementById("brand").innerHTML = brandHTML();
+  document.getElementById("eye1").innerHTML = ICONS.eye;
+  document.getElementById("eye2").innerHTML = ICONS.eye;
+  document.getElementById("i1").innerHTML = ICONS.check;
+  document.getElementById("i2").innerHTML = ICONS.check;
+  document.getElementById("i3").innerHTML = ICONS.check;
 
-    const name = document.getElementById("name").value;
-    const email = document.getElementById("email").value;
+  const btn = document.getElementById("submit");
+  document.getElementById("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
+    const confirm = document.getElementById("confirm").value;
     const role = document.getElementById("role").value;
 
-    fetch("/signup", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ name, email, password, role })
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert(data.message);
-        window.location.href = "/";
-    });
-});
-</script>
+    if (password.length < 4) return toast("Weak password", "Use at least 4 characters", "warn");
+    if (password !== confirm) return toast("Passwords don't match", "Please re-enter", "warn");
 
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+    const { ok, data } = await api("/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password, role }),
+    });
+
+    if (ok && data && data.status === "success") {
+      toast("Account created", "You can now sign in", "ok");
+      setTimeout(() => window.location.href = "/", 800);
+    } else {
+      btn.disabled = false; btn.textContent = "Create account";
+      toast("Sign up failed", (data && data.message) || "Try again", "err");
+    }
+  });
+</script>
 </body>
 </html>

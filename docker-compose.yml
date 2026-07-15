@@ -1,0 +1,46 @@
+# Argus AI - local development with LIVE RELOAD (no rebuilds for code changes)
+#
+#   docker compose up --build      # first time only
+#   open http://localhost:5000
+#
+# Source is bind-mounted and gunicorn runs with --reload, so editing anything
+# in backend/ or frontend/ is picked up instantly — you do NOT rebuild the
+# image to see code changes. Rebuild only when requirements.txt changes.
+#
+# (Render uses the Dockerfile's production command, not this file.)
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: argus-ai:latest
+    container_name: argus-ai
+    ports:
+      - "5000:5000"
+    environment:
+      ARGUS_HOST: "0.0.0.0"
+      ARGUS_PORT: "5000"
+      ARGUS_DEBUG: "false"
+      ARGUS_DATA_DIR: "/data"
+      ARGUS_DB_PATH: "/data/patient.db"
+      ARGUS_SEED_DEMO: "true"
+    # Secrets (email / Twilio) read from a local .env if present.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - argus-data:/data
+      - ./backend:/app/backend   # live-reload: host code shadows image code
+      - ./frontend:/app/frontend
+    # Dev command: single worker + --reload (no --preload). Live reloads on edit.
+    command: ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 --workers 1 --reload backend.api_server:app"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:5000/health').status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  argus-data:
