@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Argus AI</title>
+    <link rel="stylesheet" href="/static/style.css">
+
+    <style>
+        body {
+            background: #f4f6f9;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 30px;
+            background: #0077b6;
+            color: white;
+        }
+
+        .dashboard {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 60px;
+        }
+
+        .card {
+            width: 250px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px;
+            border: none;
+            background: #0077b6;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #023e8a;
+        }
+
+        input {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- Navbar -->
+<div class="navbar">
+    <h2>Argus AI</h2>
+    <button onclick="logout()">Logout</button>
+</div>
+
+<!-- Dashboard -->
+<div class="dashboard">
+
+    <!-- Live Monitoring -->
+    <div class="card">
+        <h3>📡 Live Monitoring</h3>
+        <p>Start real-time patient tracking</p>
+        <button onclick="startMonitoring()">Start</button>
+    </div>
+
+    <!-- Upload Video -->
+    <div class="card">
+        <h3>🎥 Upload Video</h3>
+        <input type="file" id="videoFile">
+        <button onclick="uploadVideo()">Upload</button>
+    </div>
+
+    <!-- Reports -->
+    <div class="card">
+        <h3>📊 Reports</h3>
+        <button onclick="getReport()">View</button>
+    </div>
+
+</div>
+
+<!-- Script -->
+<script>
+
+/* 🔐 Check login */
+if (localStorage.getItem("loggedIn") !== "true" || localStorage.getItem("role") !== "user") {
+    window.location.href = "/";
+}
+
+/* 🚪 Logout */
+function logout() {
+    localStorage.clear();
+    window.location.href = "/";
+}
+
+/* ▶ Start Monitoring */
+function startMonitoring() {
+    fetch("http://127.0.0.1:5000/start")
+    .then(res => res.json())
+    .then(data => alert(data.message))
+    .catch(err => alert("Error starting monitoring"));
+}
+
+/* 🎥 Upload Video */
+function uploadVideo() {
+    let file = document.getElementById("videoFile").files[0];
+
+    if (!file) {
+        alert("Please select a video file");
+        return;
+    }
+
+    let formData = new FormData();
+    formData.append("file", file);
+
+    fetch("http://127.0.0.1:5000/video", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message))
+    .catch(err => alert("Upload failed"));
+}
+
+/* 📊 Get Report */
+function getReport() {
+
+    fetch("http://127.0.0.1:5000/report")
+    .then(response => response.json())
+    .then(data => {
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        if (data.length === 0) {
+            alert("No report available.\nRun monitoring first.");
+            return;
+        }
+
+        let report = "===== PATIENT REPORT =====\n\n";
+
+        data.forEach((item, index) => {
+
+            report +=
+                (index + 1) + ". Activity : " + item.activity + "\n" +
+                "   Risk     : " + item.risk + "\n" +
+                "   Time     : " + item.time + "\n\n";
+
+        });
+
+        alert(report);
+
+    })
+    .catch(error => {
+
+        console.log(error);
+
+        alert("Unable to load report.");
+
+    });
+
+}
+</script>
+
+</body>
+</html>

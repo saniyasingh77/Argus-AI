@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signup</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <div class="left">
+    <h1>Patient Monitoring 🏥</h1>
+    <p>Monitor patient health in real-time with AI insights</p>
+  </div>
+
+  <div class="right">
+    <h2>Create Account</h2>
+    <p>Already have account? <a href="login.html">Login</a></p>
+
+    <form id="signupForm">
+      <input type="text" id="name" placeholder="Full Name" required>
+      <input type="email" id="email" placeholder="Email" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <input type="password" id="confirm" placeholder="Confirm Password" required>
+
+      <select id="role">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+
+      <button type="submit">Sign Up</button>
+    </form>
+  </div>
+
+</div>
+
+<script>
+document.getElementById("signupForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    const name = document.getElementById("name").value;
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const role = document.getElementById("role").value;
+
+    fetch("/signup", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name, email, password, role })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        window.location.href = "/";
+    });
+});
+</script>
+
+</body>
+</html>

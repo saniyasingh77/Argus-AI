@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Admin Dashboard</title>
+
+<link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<div class="navbar">
+
+<h2>🧑‍💼 Admin Panel</h2>
+
+<button onclick="logout()">Logout</button>
+
+</div>
+
+
+
+<div class="dashboard">
+
+
+<div class="card">
+
+<h2>👥 View Users</h2>
+
+<button onclick="view()">View</button>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>🗑 Delete User</h2>
+
+<button onclick="del()">Delete</button>
+
+</div>
+
+
+</div>
+
+
+
+<script>
+
+
+// security check
+if(localStorage.getItem("loggedIn")!=="true" ||
+
+localStorage.getItem("role")!=="admin"){
+
+window.location.href="login.html"
+
+}
+
+
+
+// VIEW USERS FROM DATABASE
+
+function view(){
+
+fetch("/get_users")
+
+.then(res=>res.json())
+
+.then(users=>{
+
+
+if(users.length==0){
+
+alert("No users found")
+
+return
+
+}
+
+
+let text="Registered Users\n\n"
+
+
+users.forEach(u=>{
+
+text+=
+
+"ID: "+u[0]+"\n"+
+
+"Name: "+u[1]+"\n"+
+
+"Email: "+u[2]+"\n"+
+
+"Role: "+u[3]+"\n"+
+
+"----------------------\n"
+
+})
+
+
+alert(text)
+
+})
+
+}
+
+
+
+// DELETE USER FROM DATABASE
+
+function del(){
+
+let id=prompt("Enter user ID to delete")
+
+
+if(!id) return
+
+
+fetch("/delete_user/"+id)
+
+.then(res=>res.json())
+
+.then(data=>{
+
+alert(data.message)
+
+})
+
+}
+
+
+
+// LOGOUT
+
+function logout(){
+
+localStorage.clear()
+
+window.location.href="login.html"
+
+}
+
+</script>
+
+
+
+</body>
+
+</html>

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+
+# Database
+database/*.db
+
+# Videos
+uploaded.mp4
+emergency_recording.avi
+full_recording.avi
+
+# VS Code
+.vscode/
+
+# Model files (optional)
+*.h5
+*.keras
+
+# Environment variables
+.env

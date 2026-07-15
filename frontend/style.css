@@ -1,0 +1,74 @@
+* {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", sans-serif;
+}
+
+body {
+  background: linear-gradient(to right, #c9d6ff, #fbc2eb);
+}
+
+/* LOGIN + SIGNUP */
+.container {
+  display: flex;
+  width: 900px;
+  margin: 80px auto;
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.left {
+  flex: 1;
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+  color: white;
+  padding: 40px;
+}
+
+.right {
+  flex: 1;
+  padding: 40px;
+  background: #f4f4f4;
+}
+
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+button {
+  margin-top: 15px;
+  padding: 10px;
+  width: 100%;
+  border: none;
+  border-radius: 20px;
+  color: white;
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+}
+
+/* DASHBOARD */
+.navbar {
+  background: linear-gradient(to right, #6a11cb, #2575fc);
+  padding: 15px;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+}
+
+.dashboard {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  width: 250px;
+  text-align: center;
+}
