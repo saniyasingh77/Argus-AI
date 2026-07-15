@@ -10,3 +10,4 @@ protobuf==4.25.3
 requests==2.32.3
 python-dotenv==1.0.1
 twilio==9.3.0
+pytest==8.4.1
