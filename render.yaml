@@ -1,0 +1,30 @@
+# Render.com Blueprint - one-click free deploy of the Argus AI web tier.
+#
+# How to use:
+#   1. Push this repo to GitHub.
+#   2. On https://dashboard.render.com  ->  New  ->  Blueprint.
+#   3. Select this repo. Render reads this file and builds the Dockerfile.
+#   4. You get a public URL like https://argus-ai.onrender.com
+#
+# The free plan has no persistent disk, so the SQLite DB resets when the
+# instance sleeps/restarts. ARGUS_SEED_DEMO recreates the demo login on every
+# start, so you can always log in during a demo.
+services:
+  - type: web
+    name: argus-ai
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ARGUS_SEED_DEMO
+        value: "true"
+      - key: ARGUS_DEBUG
+        value: "false"
+      # Optional alert secrets - set real values in the Render dashboard,
+      # never commit them.
+      # - key: ARGUS_EMAIL_SENDER
+      #   sync: false
+      # - key: ARGUS_EMAIL_PASSWORD
+      #   sync: false

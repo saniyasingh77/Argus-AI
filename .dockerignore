@@ -1,0 +1,33 @@
+# VCS / editor
+.git
+.gitignore
+.github
+.vscode
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Local data / large artifacts not needed in the web image
+database/*.db
+*.h5
+*.keras
+*.tflite
+uploaded.mp4
+*.avi
+train/
+tests/
+Training_set.csv
+X.npy
+y.npy
+requirements-ml.txt
+
+# Secrets
+.env
+
+# Docs / meta
+*.md
+k8s/

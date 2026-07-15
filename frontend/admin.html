@@ -1,150 +1,203 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Admin Dashboard</title>
-
-<link rel="stylesheet" href="/static/style.css">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin · Argus AI</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body>
+<div class="app" id="shell"></div>
 
-<div class="navbar">
-
-<h2>🧑‍💼 Admin Panel</h2>
-
-<button onclick="logout()">Logout</button>
-
+<!-- Add user modal -->
+<div class="modal-back" id="addModal">
+  <div class="modal">
+    <h3>Add new user</h3>
+    <p>Create an account for a colleague.</p>
+    <form id="addForm" style="margin-top:16px">
+      <div class="field"><label>Full name</label><input id="au_name" placeholder="Jane Doe" required></div>
+      <div class="field"><label>Email</label><input id="au_email" type="email" placeholder="jane@hospital.com" required></div>
+      <div class="field"><label>Password</label>
+        <div class="input-group">
+          <input id="au_pw" type="password" placeholder="At least 4 characters" required>
+          <button type="button" class="toggle" onclick="togglePassword(this)" id="au_eye"></button>
+        </div>
+      </div>
+      <div class="field"><label>Role</label>
+        <select id="au_role"><option value="user">Care staff (User)</option><option value="admin">Administrator</option></select>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-ghost" onclick="closeAdd()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="au_submit">Create user</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-
-
-<div class="dashboard">
-
-
-<div class="card">
-
-<h2>👥 View Users</h2>
-
-<button onclick="view()">View</button>
-
+<!-- Delete confirm modal -->
+<div class="modal-back" id="delModal">
+  <div class="modal">
+    <h3>Delete user?</h3>
+    <p id="delText">This cannot be undone.</p>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeDel()">Cancel</button>
+      <button class="btn btn-danger" id="delConfirm">Delete</button>
+    </div>
+  </div>
 </div>
 
-
-
-<div class="card">
-
-<h2>🗑 Delete User</h2>
-
-<button onclick="del()">Delete</button>
-
-</div>
-
-
-</div>
-
-
-
+<script src="/static/app.js"></script>
 <script>
+  const user = requireAuth("admin");
+  if (user) init();
 
+  function init() {
+    buildShell(user, [
+      { view: "overview", label: "Overview", icon: "grid" },
+      { view: "users", label: "Users", icon: "users" },
+      { view: "activity", label: "Activity", icon: "activity" },
+      { view: "alerts", label: "Alerts", icon: "bell" },
+    ]);
 
-// security check
-if(localStorage.getItem("loggedIn")!=="true" ||
+    document.getElementById("content").innerHTML = `
+      <section class="view active" id="view-overview">
+        <div class="grid stats" id="stats"></div>
+        <div class="grid two" style="margin-top:18px">
+          <div class="card">
+            <div class="card-head"><div><h3>Recent Activity</h3><div class="sub">Latest patient detections</div></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Activity</th><th>Risk</th><th>When</th></tr></thead><tbody id="ovBody"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h3>Risk Distribution</h3><div class="sub">All events</div></div></div>
+            <div class="chart-bars" id="chart"></div>
+          </div>
+        </div>
+      </section>
 
-localStorage.getItem("role")!=="admin"){
+      <section class="view" id="view-users">
+        <div class="card">
+          <div class="card-head">
+            <div><h3>User Management</h3><div class="sub">All registered accounts</div></div>
+            <button class="btn btn-primary" onclick="openAdd()">${ICONS.plus}<span>Add User</span></button>
+          </div>
+          <div class="search" style="margin-bottom:14px"><span>${ICONS.search}</span>
+            <input id="userSearch" placeholder="Search by name, email or role…" oninput="renderUsers()">
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead>
+            <tbody id="usersBody"></tbody>
+          </table></div>
+        </div>
+      </section>
 
-window.location.href="login.html"
+      <section class="view" id="view-activity">
+        <div class="card">
+          <div class="card-head"><div><h3>Activity Log</h3><div class="sub">Full detection history</div></div>
+            <button class="btn btn-ghost" onclick="loadAll()">Refresh</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Activity</th><th>Risk</th><th>When</th></tr></thead><tbody id="actBody"></tbody></table></div>
+        </div>
+      </section>
 
-}
+      <section class="view" id="view-alerts">
+        <div class="card">
+          <div class="card-head"><div><h3>Emergency Alerts</h3><div class="sub">High-risk events</div></div></div>
+          <div id="alertsBox"></div>
+        </div>
+      </section>`;
 
+    document.getElementById("au_eye").innerHTML = ICONS.eye;
+    loadAll();
+  }
 
+  let USERS = [];
+  async function loadAll() {
+    const [u, s, rep, al] = await Promise.all([api("/get_users"), api("/stats"), api("/report"), api("/alerts")]);
+    USERS = u.data || [];
+    renderUsers();
+    if (s.data) { renderStats(s.data); drawChart(s.data); }
+    if (rep.data) { renderRows("actBody", rep.data); renderRows("ovBody", rep.data.slice(0, 6)); }
+    if (al.data) renderAlerts(al.data);
+  }
 
-// VIEW USERS FROM DATABASE
+  function renderStats(s) {
+    const admins = USERS.filter(u => u[3] === "admin").length;
+    const tiles = [
+      { ic: ICONS.users, cls: "", val: USERS.length, lbl: "Total Users" },
+      { ic: ICONS.shield, cls: "", val: admins, lbl: "Administrators" },
+      { ic: ICONS.heart, cls: "low", val: USERS.length - admins, lbl: "Care Staff" },
+      { ic: ICONS.activity, cls: "medium", val: s.total_events, lbl: "System Events" },
+    ];
+    document.getElementById("stats").innerHTML = tiles.map(t => `
+      <div class="card stat ${t.cls}"><div class="ic">${t.ic}</div>
+      <div><div class="val">${t.val}</div><div class="lbl">${t.lbl}</div></div></div>`).join("");
+  }
 
-function view(){
+  function renderUsers() {
+    const q = (document.getElementById("userSearch")?.value || "").toLowerCase();
+    const rows = USERS.filter(u => !q || (u[1] + " " + u[2] + " " + u[3]).toLowerCase().includes(q));
+    const body = document.getElementById("usersBody");
+    if (!rows.length) { body.innerHTML = `<tr><td colspan="5">${emptyState("No matching users")}</td></tr>`; return; }
+    body.innerHTML = rows.map(u => {
+      const rb = u[3] === "admin"
+        ? `<span class="badge badge-high"><span class="dot"></span>ADMIN</span>`
+        : `<span class="badge badge-muted"><span class="dot"></span>USER</span>`;
+      const nm = (u[1] || "").replace(/'/g, "\\'");
+      return `<tr><td class="sub">#${u[0]}</td><td><b>${u[1]}</b></td><td class="sub">${u[2]}</td><td>${rb}</td>
+        <td style="text-align:right"><button class="btn btn-ghost" style="padding:6px 12px;color:var(--high)" onclick="askDel(${u[0]},'${nm}')">Delete</button></td></tr>`;
+    }).join("");
+  }
 
-fetch("/get_users")
+  function renderRows(id, rows) {
+    const body = document.getElementById(id);
+    if (!rows.length) { body.innerHTML = `<tr><td colspan="3">${emptyState("No activity yet")}</td></tr>`; return; }
+    body.innerHTML = rows.map(r => `<tr><td><b>${r.activity}</b></td><td>${riskBadge(r.risk)}</td><td class="sub">${timeAgo(r.time)}</td></tr>`).join("");
+  }
 
-.then(res=>res.json())
+  function renderAlerts(rows) {
+    const box = document.getElementById("alertsBox");
+    if (!rows.length) { box.innerHTML = `<div class="empty">${ICONS.check}<div>All clear — no emergencies</div></div>`; return; }
+    box.innerHTML = rows.map(r => `<div class="row" style="justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+      <div><b>${r.activity}</b><div class="sub">${timeAgo(r.time)}</div></div>${riskBadge(r.risk)}</div>`).join("");
+  }
 
-.then(users=>{
+  function drawChart(s) {
+    const items = [{ k: "low", label: "Low", v: s.low }, { k: "medium", label: "Medium", v: s.medium }, { k: "high", label: "High", v: s.high }];
+    const max = Math.max(1, ...items.map(i => i.v));
+    document.getElementById("chart").innerHTML = items.map(i => `<div class="bar-col"><div class="num">${i.v}</div>
+      <div class="bar ${i.k}" style="height:${Math.round(i.v / max * 100)}%"></div><div class="cap">${i.label}</div></div>`).join("");
+  }
 
+  /* Add user */
+  const addModal = document.getElementById("addModal");
+  function openAdd() { addModal.classList.add("show"); }
+  function closeAdd() { addModal.classList.remove("show"); document.getElementById("addForm").reset(); }
+  addModal.addEventListener("click", e => { if (e.target === addModal) closeAdd(); });
+  document.getElementById("addForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = document.getElementById("au_submit"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+    const body = JSON.stringify({
+      name: au_name.value.trim(), email: au_email.value.trim(),
+      password: au_pw.value, role: au_role.value,
+    });
+    const { ok, data } = await api("/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+    btn.disabled = false; btn.textContent = "Create user";
+    if (ok && data.status === "success") { toast("User added", au_name.value.trim(), "ok"); closeAdd(); loadAll(); }
+    else toast("Could not add user", (data && data.message) || "Try again", "err");
+  });
 
-if(users.length==0){
-
-alert("No users found")
-
-return
-
-}
-
-
-let text="Registered Users\n\n"
-
-
-users.forEach(u=>{
-
-text+=
-
-"ID: "+u[0]+"\n"+
-
-"Name: "+u[1]+"\n"+
-
-"Email: "+u[2]+"\n"+
-
-"Role: "+u[3]+"\n"+
-
-"----------------------\n"
-
-})
-
-
-alert(text)
-
-})
-
-}
-
-
-
-// DELETE USER FROM DATABASE
-
-function del(){
-
-let id=prompt("Enter user ID to delete")
-
-
-if(!id) return
-
-
-fetch("/delete_user/"+id)
-
-.then(res=>res.json())
-
-.then(data=>{
-
-alert(data.message)
-
-})
-
-}
-
-
-
-// LOGOUT
-
-function logout(){
-
-localStorage.clear()
-
-window.location.href="login.html"
-
-}
-
+  /* Delete user */
+  let pendingId = null;
+  const delModal = document.getElementById("delModal");
+  function askDel(id, name) { pendingId = id; document.getElementById("delText").innerHTML = `Delete <b>${name}</b> (#${id})? This cannot be undone.`; delModal.classList.add("show"); }
+  function closeDel() { delModal.classList.remove("show"); pendingId = null; }
+  delModal.addEventListener("click", e => { if (e.target === delModal) closeDel(); });
+  document.getElementById("delConfirm").addEventListener("click", async () => {
+    if (pendingId == null) return;
+    const { ok, data } = await api("/delete_user/" + pendingId);
+    closeDel();
+    if (ok) { toast("User deleted", (data && data.message) || "", "ok"); loadAll(); }
+    else toast("Delete failed", "Server error", "err");
+  });
 </script>
-
-
-
 </body>
-
 </html>

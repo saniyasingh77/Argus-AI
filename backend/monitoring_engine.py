@@ -1,7 +1,11 @@
 import cv2
 import mediapipe as mp
 import time
-import winsound
+
+try:
+    import winsound  # Windows-only; alert beep is best-effort
+except ImportError:  # pragma: no cover - non-Windows / headless
+    winsound = None
 
 from backend.detection_dl import detect_activity_dl
 from backend.database import save_activity
@@ -175,11 +179,11 @@ def run_monitoring():
 
             send_alert(activity)
 
-            try:
-
-                winsound.Beep(2500,1000)
-            except:
-                pass
+            if winsound is not None:
+                try:
+                    winsound.Beep(2500, 1000)
+                except Exception:
+                    pass
 
 
             emergency_video.write(frame)

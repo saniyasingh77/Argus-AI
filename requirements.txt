@@ -1,13 +1,7 @@
+# Deployable web-tier dependencies (Vercel / Render / Docker / CI).
+# Deliberately tiny: the UI, auth, SQLite reports and alerts dashboard need
+# only these. The camera / video CV features (OpenCV, MediaPipe, TensorFlow)
+# are local-hardware only and live in requirements-ml.txt.
 Flask==3.0.3
-Flask-Cors==4.0.1
-mediapipe==0.10.30
-opencv-python==4.10.0.84
-numpy==1.26.4
-pandas==2.2.2
-matplotlib==3.8.4
-tensorflow==2.16.1
-protobuf==4.25.3
-requests==2.32.3
 python-dotenv==1.0.1
-twilio==9.3.0
-pytest==8.4.1
+gunicorn==22.0.0
