@@ -79,6 +79,27 @@ def test_duplicate_signup_rejected():
     assert client.post("/signup", json=payload).status_code == 409
 
 
+def test_start_returns_demo_detections():
+    # No webcam/CV stack in CI -> demo analysis path returns detections.
+    body = _client().get("/start").get_json()
+    assert "detections" in body
+    assert len(body["detections"]) >= 1
+    assert all("activity" in d and "risk" in d for d in body["detections"])
+
+
+def test_video_requires_a_file():
+    assert _client().post("/video").status_code == 400
+
+
+def test_video_demo_analysis():
+    import io
+    data = {"file": (io.BytesIO(b"not a real video"), "clip.mp4")}
+    resp = _client().post("/video", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert len(body.get("detections", [])) >= 1
+
+
 def test_password_is_hashed_not_plaintext():
     import sqlite3
     from backend import config

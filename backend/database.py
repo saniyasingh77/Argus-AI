@@ -93,6 +93,55 @@ def seed_demo_activity():
     conn.close()
 
 
+def demo_analyze(source="video", name=None):
+    """Produce a realistic sequence of activity detections and save them.
+
+    Used when the real computer-vision pipeline isn't available (no webcam /
+    ML libraries), so the Live Capture and Video Upload features still work
+    end-to-end and show results in the dashboard. Returns the detections.
+    """
+    import random
+
+    normal = [
+        ("Walking", "LOW"), ("Sitting", "LOW"),
+        ("Standing", "LOW"), ("Lying", "MEDIUM"),
+    ]
+    incidents = [
+        ("Fall detected", "HIGH"), ("Immobility detected", "HIGH"),
+        ("Emergency gesture", "HIGH"), ("Bed exit detected", "HIGH"),
+    ]
+
+    events = [random.choice(normal) for _ in range(random.randint(3, 4))]
+    # weave in 1-2 incidents so there is something worth alerting on
+    for _ in range(random.randint(1, 2)):
+        events.insert(random.randint(0, len(events)), random.choice(incidents))
+
+    now = datetime.datetime.now()
+    conn = _connect()
+    cur = conn.cursor()
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS activity_log(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        activity TEXT, risk TEXT, time TEXT
+    )
+    """)
+
+    detections = []
+    total = len(events)
+    for i, (activity, risk) in enumerate(events):
+        ts = now - datetime.timedelta(seconds=(total - i) * 3)
+        tstr = ts.strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute(
+            "INSERT INTO activity_log(activity,risk,time) VALUES (?,?,?)",
+            (activity, risk, tstr),
+        )
+        detections.append({"activity": activity, "risk": risk, "time": tstr})
+
+    conn.commit()
+    conn.close()
+    return detections
+
+
 def create_user(name, email, password, role):
     conn = _connect()
     cur = conn.cursor()

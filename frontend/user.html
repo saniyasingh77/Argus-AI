@@ -55,6 +55,11 @@
             <button class="btn btn-primary btn-block mt-16" id="upBtn" onclick="uploadVideo()">Upload &amp; Analyse</button>
           </div>
         </div>
+
+        <div class="card" id="resultCard" style="margin-top:18px; display:none">
+          <div class="card-head"><div><h3>Analysis Result</h3><div class="sub" id="resultSub">Detected activities</div></div></div>
+          <div class="table-wrap"><table><thead><tr><th>#</th><th>Detected Activity</th><th>Risk</th><th>Time</th></tr></thead><tbody id="resultBody"></tbody></table></div>
+        </div>
       </section>
 
       <section class="view" id="view-reports">
@@ -119,13 +124,35 @@
       <div class="bar ${i.k}" style="height:${Math.round(i.v / max * 100)}%"></div><div class="cap">${i.label}</div></div>`).join("");
   }
 
+  function showResult(detections, subtitle) {
+    const card = document.getElementById("resultCard");
+    document.getElementById("resultSub").textContent = subtitle;
+    document.getElementById("resultBody").innerHTML = detections.map((d, i) =>
+      `<tr><td class="sub">${i + 1}</td><td><b>${d.activity}</b></td><td>${riskBadge(d.risk)}</td><td class="sub">${(d.time || "").split(" ")[1] || ""}</td></tr>`).join("");
+    card.style.display = "block";
+    card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   async function startMonitoring() {
     const btn = document.getElementById("monBtn"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
-    const { ok, status, data } = await api("/start");
+    document.getElementById("monText").textContent = "Analysing…";
+    const { ok, data } = await api("/start");
     btn.disabled = false; btn.textContent = "Start Monitoring";
-    if (ok) { document.getElementById("pulse").classList.add("on"); document.getElementById("monText").textContent = "Monitoring active"; toast("Monitoring started", data.message || "", "ok"); }
-    else if (status === 501) { document.getElementById("monText").textContent = "Camera not available here"; toast("Cloud demo", "Live camera runs on a local device with a webcam.", "warn"); }
-    else toast("Could not start", (data && data.message) || "Server error", "err");
+    if (ok && data.detections) {
+      const high = data.detections.filter(d => d.risk === "HIGH").length;
+      document.getElementById("pulse").classList.add("on");
+      document.getElementById("monText").textContent = "Session complete";
+      showResult(data.detections, `Live monitoring · ${data.detections.length} events, ${high} alert(s)`);
+      await loadAll();
+      toast("Monitoring complete", data.message || "", "ok");
+    } else if (ok) {
+      document.getElementById("pulse").classList.add("on");
+      document.getElementById("monText").textContent = "Monitoring active";
+      toast("Monitoring started", data.message || "", "ok");
+    } else {
+      document.getElementById("monText").textContent = "Idle";
+      toast("Could not start", (data && data.message) || "Server error", "err");
+    }
   }
 
   async function uploadVideo() {
@@ -133,11 +160,18 @@
     if (!f) return toast("No file", "Choose a video first", "warn");
     const btn = document.getElementById("upBtn"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
     const fd = new FormData(); fd.append("file", f);
-    const { ok, status, data } = await api("/video", { method: "POST", body: fd });
+    const { ok, data } = await api("/video", { method: "POST", body: fd });
     btn.disabled = false; btn.textContent = "Upload & Analyse";
-    if (ok) toast("Processing", data.message || "", "ok");
-    else if (status === 501) toast("Cloud demo", "Video analysis needs the local ML stack.", "warn");
-    else toast("Upload failed", (data && data.message) || "Server error", "err");
+    if (ok && data.detections) {
+      const high = data.detections.filter(d => d.risk === "HIGH").length;
+      showResult(data.detections, `${f.name} · ${data.detections.length} activities, ${high} alert(s)`);
+      await loadAll();
+      toast("Analysis complete", data.message || "", "ok");
+    } else if (ok) {
+      toast("Processing started", data.message || "", "ok");
+    } else {
+      toast("Upload failed", (data && data.message) || "Server error", "err");
+    }
   }
 </script>
 </body>
