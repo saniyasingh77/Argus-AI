@@ -261,8 +261,11 @@ tbody tr:last-child td { border-bottom: none; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(22,163,74,.5);} 70% { box-shadow: 0 0 0 12px rgba(22,163,74,0);} 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0);} }
 
 .dropzone {
-  border: 2px dashed var(--border); border-radius: 12px; padding: 22px; text-align: center;
-  color: var(--muted); cursor: pointer; transition: border .15s, background .15s;
+  display: block;   /* labels are inline by default — without this the dashed
+                       border fragments and the text overlaps the card head */
+  border: 2px dashed var(--border); border-radius: 12px; padding: 26px 18px;
+  text-align: center; color: var(--muted); cursor: pointer;
+  transition: border .15s, background .15s; line-height: 1.5;
 }
 .dropzone:hover { border-color: var(--primary); background: var(--primary-050); color: var(--text); }
 

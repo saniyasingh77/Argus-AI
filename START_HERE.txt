@@ -1,0 +1,81 @@
+====================================================
+ ARGUS AI  -  Instructions
+====================================================
+
+WHAT YOU NEED
+-------------
+- A Windows PC with a webcam (for live monitoring)
+- Python 3.10, 3.11, or 3.12   (NOT 3.13 - MediaPipe does
+  not support it yet). Check with:   python --version
+  If you have 3.13, install 3.12 from python.org.
+
+
+===============  RUN IT (EASIEST)  =================
+1. Unzip this folder.
+2. Double-click:   run.bat
+   (First time it installs everything - a few minutes.
+    After that it starts in seconds.)
+3. Open your browser at:   http://127.0.0.1:5000
+4. Log in:
+        User:   demo@argus.ai   /  demo123
+        Admin:  admin@argus.ai  /  admin123
+5. To stop: press CTRL+C in the black window.
+
+
+=========  RUN IT MANUALLY (if you prefer)  ========
+Open a terminal INSIDE this folder and run:
+
+    python -m venv .venv
+    .venv\Scripts\activate           <-- do NOT skip this line
+    pip install -r requirements-ml.txt
+    python -m backend.api_server
+
+Then open http://127.0.0.1:5000
+(If you skip the "activate" line the camera will NOT open.)
+
+
+===============  WHAT TO DEMO  =====================
+LOGIN  -> log in as the User account.
+
+OVERVIEW  -> dashboard with stats, activity, risk chart.
+
+LIVE MONITORING  ->  Monitoring tab  ->  Start Monitoring
+   - Your webcam opens with a pose skeleton.
+   - Raise a hand above your shoulder  -> "Emergency
+     gesture / HIGH"  -> sends an EMAIL alert.
+   - Lie down / go horizontal  -> "Fall detected / HIGH".
+   - Close the camera: click the X on the window, press
+     ESC, or click "Stop Monitoring".
+
+VIDEO ANALYSIS  ->  click the drop area  -> pick a video
+   that HAS A PERSON in it  -> Upload & Analyse.
+   (A clip with no person shows 0 detections - that's
+    normal, not an error.)
+   TIP: if the file picker seems stuck, type the full
+   file path into the "File name" box and click Open.
+
+REPORTS / ALERTS  -> see the detected activities and the
+   high-risk events.
+
+ADMIN  -> log in as admin to add / search / delete users.
+
+
+===============  ALERTS  ===========================
+- EMAIL alerts already work.
+- WHATSAPP needs a fresh Twilio token (the old one was
+  disabled). To enable it:
+    1. console.twilio.com -> regenerate the Auth Token.
+    2. Re-join the WhatsApp sandbox (send the join code
+       on WhatsApp to +1 415 523 8886).
+    3. Put the new token in the ".env" file.
+  (Alerts only run on a local PC, not on the cloud demo.)
+
+
+=======  DEPLOY ONLINE FOR FREE (Render)  ==========
+See README.md, "Deploy on Render". The GitHub Actions
+pipeline (.github/workflows/ci.yml) runs tests + builds
+the Docker image on every push; Render auto-deploys it.
+
+The camera/alerts do NOT run on Render (no webcam there)
+- it shows demo results instead. That is expected.
+====================================================

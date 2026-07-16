@@ -45,13 +45,14 @@
             <div class="monitor">
               <div style="margin-bottom:12px"><span class="pulse" id="pulse"></span><b id="monText">Idle</b></div>
               <button class="btn btn-primary btn-block" id="monBtn" onclick="startMonitoring()">Start Monitoring</button>
+              <button class="btn btn-ghost btn-block mt-16 hidden" id="stopBtn" onclick="stopMonitoring()">Stop Monitoring</button>
               <p class="sub" style="margin-top:12px">Runs on a device with a webcam. In the cloud demo this shows how alerts trigger.</p>
             </div>
           </div>
           <div class="card">
             <div class="card-head"><div><h3>Video Analysis</h3><div class="sub">Upload a clip to analyse</div></div></div>
             <label class="dropzone" for="video"><div id="dzText">📹 Click to choose a video<br><span class="sub">MP4 · analysed with pose detection</span></div></label>
-            <input type="file" id="video" accept="video/*" class="hidden">
+            <input type="file" id="video" accept=".mp4,.avi,.mov,.mkv,.webm,video/*" class="hidden">
             <button class="btn btn-primary btn-block mt-16" id="upBtn" onclick="uploadVideo()">Upload &amp; Analyse</button>
           </div>
         </div>
@@ -146,13 +147,46 @@
       await loadAll();
       toast("Monitoring complete", data.message || "", "ok");
     } else if (ok) {
+      // Real camera session is running — offer a Stop button and watch for it
+      // ending (user may close the window with X or press ESC).
       document.getElementById("pulse").classList.add("on");
       document.getElementById("monText").textContent = "Monitoring active";
-      toast("Monitoring started", data.message || "", "ok");
+      document.getElementById("stopBtn").classList.remove("hidden");
+      toast("Monitoring started", "Close the camera window, press ESC, or click Stop.", "ok");
+      watchMonitoring();
     } else {
       document.getElementById("monText").textContent = "Idle";
       toast("Could not start", (data && data.message) || "Server error", "err");
     }
+  }
+
+  // Reset the panel to Idle once the session ends by any means.
+  function setMonitorIdle() {
+    document.getElementById("pulse").classList.remove("on");
+    document.getElementById("monText").textContent = "Idle";
+    document.getElementById("stopBtn").classList.add("hidden");
+  }
+
+  let monPoll = null;
+  function watchMonitoring() {
+    clearInterval(monPoll);
+    monPoll = setInterval(async () => {
+      const { ok, data } = await api("/monitor_status");
+      if (ok && data && data.running === false) {
+        clearInterval(monPoll); monPoll = null;
+        setMonitorIdle();
+        await loadAll();
+        toast("Monitoring ended", "Camera released.", "ok");
+      }
+    }, 2000);
+  }
+
+  async function stopMonitoring() {
+    clearInterval(monPoll); monPoll = null;
+    const { ok, data } = await api("/stop");
+    setMonitorIdle();
+    await loadAll();
+    toast(ok ? "Monitoring stopped" : "Stop failed", (data && data.message) || "", ok ? "ok" : "err");
   }
 
   async function uploadVideo() {
@@ -160,18 +194,42 @@
     if (!f) return toast("No file", "Choose a video first", "warn");
     const btn = document.getElementById("upBtn"); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
     const fd = new FormData(); fd.append("file", f);
-    const { ok, data } = await api("/video", { method: "POST", body: fd });
-    btn.disabled = false; btn.textContent = "Upload & Analyse";
-    if (ok && data.detections) {
+    const { ok, status, data } = await api("/video", { method: "POST", body: fd });
+
+    if (ok && data.mode === "demo" && data.detections) {
+      // Cloud / no CV stack: results come back immediately.
+      btn.disabled = false; btn.textContent = "Upload & Analyse";
       const high = data.detections.filter(d => d.risk === "HIGH").length;
       showResult(data.detections, `${f.name} · ${data.detections.length} activities, ${high} alert(s)`);
       await loadAll();
       toast("Analysis complete", data.message || "", "ok");
     } else if (ok) {
-      toast("Processing started", data.message || "", "ok");
+      // Local real analysis runs in the background — poll until it finishes.
+      btn.innerHTML = '<span class="spin"></span> Analysing…';
+      toast("Analysing video", "A window opens showing detection. Results appear here when done.", "ok");
+      pollVideo(f.name, btn);
     } else {
+      btn.disabled = false; btn.textContent = "Upload & Analyse";
       toast("Upload failed", (data && data.message) || "Server error", "err");
     }
+  }
+
+  function pollVideo(name, btn) {
+    const iv = setInterval(async () => {
+      const { ok, data } = await api("/video_status");
+      if (!ok) return;
+      if (data.running === false) {
+        clearInterval(iv);
+        btn.disabled = false; btn.textContent = "Upload & Analyse";
+        const dets = data.detections || [];
+        if (dets.length) {
+          const high = dets.filter(d => d.risk === "HIGH").length;
+          showResult(dets, `${name} · ${dets.length} activities, ${high} alert(s)`);
+        }
+        await loadAll();
+        toast("Analysis complete", `${dets.length} activities detected`, "ok");
+      }
+    }, 1500);
   }
 </script>
 </body>

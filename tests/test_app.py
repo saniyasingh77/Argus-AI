@@ -79,8 +79,15 @@ def test_duplicate_signup_rejected():
     assert client.post("/signup", json=payload).status_code == 409
 
 
-def test_start_returns_demo_detections():
-    # No webcam/CV stack in CI -> demo analysis path returns detections.
+def _force_demo(monkeypatch):
+    """Pretend the CV stack is absent so tests exercise the demo path and
+    never touch a real webcam (important when OpenCV IS installed locally)."""
+    import backend.api_server as srv
+    monkeypatch.setattr(srv, "_cv_available", lambda: False)
+
+
+def test_start_returns_demo_detections(monkeypatch):
+    _force_demo(monkeypatch)
     body = _client().get("/start").get_json()
     assert "detections" in body
     assert len(body["detections"]) >= 1
@@ -91,13 +98,18 @@ def test_video_requires_a_file():
     assert _client().post("/video").status_code == 400
 
 
-def test_video_demo_analysis():
+def test_video_demo_analysis(monkeypatch):
+    _force_demo(monkeypatch)
     import io
     data = {"file": (io.BytesIO(b"not a real video"), "clip.mp4")}
     resp = _client().post("/video", data=data, content_type="multipart/form-data")
     assert resp.status_code == 200
     body = resp.get_json()
     assert len(body.get("detections", [])) >= 1
+
+
+def test_stop_endpoint():
+    assert _client().get("/stop").status_code == 200
 
 
 def test_password_is_hashed_not_plaintext():

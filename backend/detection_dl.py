@@ -15,19 +15,33 @@ labels = [
 # this module never crashes when the .h5 file is absent (e.g. in CI or a
 # freshly-built container before the model artifact is mounted).
 _model = None
+# Cached so we don't stat the filesystem / raise on every single video frame.
+_model_unavailable = False
 
 
 def _get_model():
-    global _model
+    """Return the trained model, or None if it isn't available.
+
+    The result is cached: once we know there is no model we never touch the
+    filesystem again (this runs on every frame of the video loop).
+    """
+    global _model, _model_unavailable
+
+    if _model_unavailable:
+        return None
+
     if _model is None:
         if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(
-                f"Activity model not found at {MODEL_PATH}. "
-                "Train it with `python -m backend.train_dl_model` or mount "
-                "the artifact via ARGUS_MODEL_PATH."
-            )
-        from tensorflow.keras.models import load_model
-        _model = load_model(MODEL_PATH)
+            _model_unavailable = True
+            return None
+        try:
+            from tensorflow.keras.models import load_model
+            _model = load_model(MODEL_PATH)
+        except Exception as e:
+            print("Model load failed, using pose rules instead:", e)
+            _model_unavailable = True
+            return None
+
     return _model
 
 def _heuristic_activity(landmarks):
@@ -64,10 +78,14 @@ def detect_activity_dl(landmarks):
     # Use the trained model if available; otherwise fall back to pose-geometry
     # heuristics so live monitoring / video analysis still work without the
     # (unshipped) .h5 model file.
-    try:
-        pred = _get_model().predict(features.reshape(1, -1), verbose=0)
-        activity = labels[np.argmax(pred)]
-    except Exception:
+    model = _get_model()
+    if model is not None:
+        try:
+            pred = model.predict(features.reshape(1, -1), verbose=0)
+            activity = labels[np.argmax(pred)]
+        except Exception:
+            activity = _heuristic_activity(landmarks)
+    else:
         activity = _heuristic_activity(landmarks)
 
     risk = "LOW"

@@ -137,31 +137,12 @@ def _cv_available():
         return False
 
 
-def _camera_available():
-    """True only if OpenCV is installed AND a real webcam can be opened.
-
-    On a cloud server (Render) there is no webcam, so this returns False and
-    the app falls back to the demo analysis. On a local machine with a webcam
-    it returns True and the original real-time camera flow runs.
-    """
-    try:
-        import cv2
-    except Exception:
-        return False
-    try:
-        cap = cv2.VideoCapture(0)
-        ok = cap.isOpened()
-        cap.release()
-        return bool(ok)
-    except Exception:
-        return False
-
-
 @app.route("/start")
 def start():
-    # If a real webcam is available (local machine), run the ORIGINAL
-    # real-time monitoring flow — it opens a camera window on that device.
-    if _camera_available():
+    # If the CV stack is installed (local full install), run the ORIGINAL
+    # real-time camera flow. The engine opens the webcam with the reliable
+    # DirectShow backend and sends real email / WhatsApp alerts on high risk.
+    if _cv_available():
         from backend.monitoring_engine import run_monitoring
         threading.Thread(target=run_monitoring, daemon=True).start()
         return jsonify({
@@ -169,8 +150,8 @@ def start():
             "message": "Live camera monitoring started — a window opens on this device.",
         })
 
-    # No webcam (e.g. cloud / Render): run the demo analysis so the feature
-    # still produces visible results in the dashboard.
+    # No CV stack (e.g. cloud / Render): demo analysis so the feature still
+    # produces visible results in the dashboard.
     detections = demo_analyze(source="live")
     high = sum(1 for d in detections if d["risk"] == "HIGH")
     return jsonify({
@@ -178,6 +159,42 @@ def start():
         "message": f"Demo monitoring — {len(detections)} events, {high} alert(s)",
         "detections": detections,
     })
+
+
+@app.route("/stop")
+def stop():
+    """Stop a running live-monitoring session (closes the camera window)."""
+    try:
+        from backend.monitoring_engine import stop_monitoring
+        stop_monitoring()
+        return jsonify({"message": "Monitoring stopped"})
+    except Exception:
+        return jsonify({"message": "Monitoring is not running"})
+
+
+@app.route("/video_status")
+def video_status():
+    """Report whether a real video analysis is still running, and its results,
+    so the dashboard can show them when it finishes."""
+    try:
+        from backend.video_processor import is_processing, get_last_results
+        return jsonify({
+            "running": is_processing(),
+            "detections": get_last_results(),
+        })
+    except Exception:
+        return jsonify({"running": False, "detections": []})
+
+
+@app.route("/monitor_status")
+def monitor_status():
+    """Report whether a live session is still running, so the dashboard can
+    reset itself when the user closes the window with X or presses ESC."""
+    try:
+        from backend.monitoring_engine import is_monitoring
+        return jsonify({"running": is_monitoring()})
+    except Exception:
+        return jsonify({"running": False})
 
 
 @app.route("/video", methods=["POST"])

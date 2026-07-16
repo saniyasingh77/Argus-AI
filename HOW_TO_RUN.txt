@@ -10,6 +10,21 @@ DEMO LOGINS
   Admin:  admin@argus.ai  /  admin123
 
 ----------------------------------------------------
+ EASIEST WAY (Windows) - just double-click:
+----------------------------------------------------
+       run.bat
+
+It sets everything up the first time (a few minutes),
+then starts the app with the webcam enabled.
+Then open:  http://127.0.0.1:5000
+
+IMPORTANT: do NOT just run "python -m backend.api_server"
+without activating the virtual environment first - it will
+use the wrong Python, the AI libraries won't be found, and
+the CAMERA WILL NOT OPEN (you'll get demo results instead).
+run.bat avoids this problem entirely.
+
+----------------------------------------------------
  OPTION A — Docker  (recommended, easiest)
 ----------------------------------------------------
 1. Install Docker Desktop and open it (wait until it says "running").
@@ -39,13 +54,33 @@ MAC / LINUX — same, but activate with:
        source .venv/bin/activate
 
 ----------------------------------------------------
+ REAL LIVE MONITORING + VIDEO + ALERTS (on a local PC)
+----------------------------------------------------
+The demo (and Render) shows sample results. To run the
+REAL webcam monitoring, real video analysis, and send
+real email + WhatsApp alerts, on a machine WITH a webcam:
+
+1. Install the full AI stack (one time):
+       pip install -r requirements-ml.txt
+
+2. Enable alerts: create a file named  .env  in this
+   folder (copy from .env.example) and fill in the
+   email + Twilio (WhatsApp) credentials.
+
+3. Run it with Python (NOT Docker - Docker can't reach
+   the webcam on Windows):
+       python -m backend.api_server
+
+Now "Start Monitoring" opens the webcam and does real
+detection, "Upload" runs real analysis, and high-risk
+events send email + WhatsApp alerts - exactly as before.
+
+----------------------------------------------------
  NOTES
 ----------------------------------------------------
 - The dashboard comes pre-filled with demo data so it
   looks alive immediately.
-- "Live Monitoring" and "Video Analysis" need a real
-  webcam + the full AI libraries (requirements-ml.txt);
-  in a normal run they show a friendly message instead.
+- On Render (no webcam) both features show demo results.
 - To deploy it online for free, see the "Deploy on
   Render" section in README.md.
 ====================================================

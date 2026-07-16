@@ -1,19 +1,31 @@
-# Full local-development stack: live-camera monitoring, video CV analysis and
-# model training. Install this for local dev with a webcam:
+# Full local stack for the REAL features:
+#   - Live webcam monitoring
+#   - Real video-file analysis
+#   - Real email + WhatsApp alerts on high-risk events
+#
+# Install on a machine WITH a webcam, then run:  python -m backend.api_server
 #     pip install -r requirements-ml.txt
-# Cloud deployments use the lightweight requirements.txt instead.
-Flask==3.0.3
-Flask-Cors==4.0.1
-mediapipe==0.10.30
+#
+# NOTE: mediapipe must stay <= 0.10.21. Version 0.10.30+ REMOVED the legacy
+# `mediapipe.solutions` API that this project's pose detection uses, which
+# makes the camera crash. Do not bump this pin without updating the code.
+mediapipe==0.10.21
 opencv-python==4.10.0.84
 numpy==1.26.4
-pandas==2.2.2
-matplotlib==3.8.4
-scikit-learn==1.5.1
-tensorflow==2.16.1
-protobuf==4.25.3
-requests==2.32.3
+
+# Web tier (same as requirements.txt) so this file alone is enough to run.
+Flask==3.0.3
 python-dotenv==1.0.1
-twilio==9.3.0
-pytest==8.4.1
 gunicorn==22.0.0
+twilio==9.3.0
+
+# ---------------------------------------------------------------------------
+# Only needed if you want to TRAIN a new activity model (large download,
+# ~600MB). The app does NOT need these: without a trained .h5 model it falls
+# back to pose-geometry rules (fall / lying / immobility / help-gesture),
+# which is what the live detection uses.
+# ---------------------------------------------------------------------------
+# tensorflow==2.16.1
+# scikit-learn==1.5.1
+# pandas==2.2.2
+# matplotlib==3.8.4
