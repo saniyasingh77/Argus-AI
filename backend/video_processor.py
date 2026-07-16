@@ -43,10 +43,12 @@ def process_video(path):
             )
 
 
-            activity, risk = detect_activity_dl(
-
-                res.pose_landmarks.landmark
-            )
+            try:
+                activity, risk = detect_activity_dl(
+                    res.pose_landmarks.landmark
+                )
+            except Exception as e:
+                print("Detection error:", e)
 
 
             save_activity(activity, risk)

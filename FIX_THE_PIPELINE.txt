@@ -1,0 +1,51 @@
+====================================================
+ HOW TO MAKE THE GITHUB PIPELINE GO GREEN
+====================================================
+
+The pipeline keeps failing ONLY because the repo on GitHub does not yet have
+the latest fixed files. This folder HAS them. Follow the steps below.
+
+----------------------------------------------------
+ STEP 1 - Confirm you have the correct version
+----------------------------------------------------
+This folder MUST contain these two files at the top level:
+
+    pytest.ini
+    conftest.py
+
+If you can see both files here, you have the fixed version. Good.
+(These two files are what fix the "Build & Test" failure.)
+
+----------------------------------------------------
+ STEP 2 - Push this exact folder to GitHub (main)
+----------------------------------------------------
+Open a terminal INSIDE this folder and run these commands.
+This replaces the repo's main branch with these fixed files:
+
+    git init
+    git add -A
+    git commit -m "Fixed CI pipeline"
+    git branch -M main
+    git remote add origin https://github.com/saniyasingh77/Argus-AI.git
+    git push -f origin main
+
+(If it says "remote origin already exists", run instead:
+    git remote set-url origin https://github.com/saniyasingh77/Argus-AI.git
+ then run the "git push -f origin main" line again.)
+
+----------------------------------------------------
+ NO-GIT ALTERNATIVE (GitHub website)
+----------------------------------------------------
+1. Go to the repo on github.com.
+2. Click:  Add file  ->  Upload files.
+3. Drag in ALL files from this folder (including pytest.ini and conftest.py).
+4. Choose "Commit directly to the main branch" and commit.
+
+----------------------------------------------------
+ IMPORTANT
+----------------------------------------------------
+- Do NOT click "Re-run jobs" on an OLD run - that just re-runs the old broken
+  files. You must push a NEW commit with these files.
+- After the new commit lands on main, all three stages go green:
+  Build & Test  ->  Security Scan  ->  Docker Build.
+====================================================

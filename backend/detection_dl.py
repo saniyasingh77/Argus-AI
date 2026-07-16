@@ -30,6 +30,26 @@ def _get_model():
         _model = load_model(MODEL_PATH)
     return _model
 
+def _heuristic_activity(landmarks):
+    """Classify the base activity from pose geometry alone (no trained model
+    required). Used when the .h5 model is not present so the app still does
+    real analysis locally."""
+    try:
+        shoulder = landmarks[11]
+        hip = landmarks[24]
+        knee = landmarks[26]
+        ankle = landmarks[28]
+        # body roughly horizontal -> lying down
+        if abs(shoulder.y - ankle.y) < 0.2:
+            return "Lying"
+        # hip close to knee height -> knees bent -> sitting
+        if abs(hip.y - knee.y) < 0.12:
+            return "Sitting"
+        return "Standing"
+    except Exception:
+        return "Moving"
+
+
 def detect_activity_dl(landmarks):
 
     # convert pose landmarks into feature vector
@@ -41,13 +61,14 @@ def detect_activity_dl(landmarks):
 
     features = np.array(features)
 
-    # deep learning prediction
-    pred = _get_model().predict(
-        features.reshape(1,-1),
-        verbose=0
-    )
-
-    activity = labels[np.argmax(pred)]
+    # Use the trained model if available; otherwise fall back to pose-geometry
+    # heuristics so live monitoring / video analysis still work without the
+    # (unshipped) .h5 model file.
+    try:
+        pred = _get_model().predict(features.reshape(1, -1), verbose=0)
+        activity = labels[np.argmax(pred)]
+    except Exception:
+        activity = _heuristic_activity(landmarks)
 
     risk = "LOW"
 

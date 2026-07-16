@@ -12,6 +12,7 @@ from backend.database import (
     seed_demo_users,
     seed_demo_activity,
     email_exists,
+    demo_analyze,
 )
 from backend import config
 
@@ -126,47 +127,86 @@ def login_api():
 
 # ================= MONITORING =================
 
+def _cv_available():
+    """True if the OpenCV + MediaPipe computer-vision stack is installed."""
+    try:
+        import cv2  # noqa: F401
+        import mediapipe  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _camera_available():
+    """True only if OpenCV is installed AND a real webcam can be opened.
+
+    On a cloud server (Render) there is no webcam, so this returns False and
+    the app falls back to the demo analysis. On a local machine with a webcam
+    it returns True and the original real-time camera flow runs.
+    """
+    try:
+        import cv2
+    except Exception:
+        return False
+    try:
+        cap = cv2.VideoCapture(0)
+        ok = cap.isOpened()
+        cap.release()
+        return bool(ok)
+    except Exception:
+        return False
+
+
 @app.route("/start")
 def start():
-    # Imported lazily: live monitoring needs a local camera + GUI (OpenCV,
-    # MediaPipe, winsound) which are not available in a headless container.
-    # Keeping the import here lets the web tier start without those deps.
-    try:
+    # If a real webcam is available (local machine), run the ORIGINAL
+    # real-time monitoring flow — it opens a camera window on that device.
+    if _camera_available():
         from backend.monitoring_engine import run_monitoring
-    except Exception as e:
+        threading.Thread(target=run_monitoring, daemon=True).start()
         return jsonify({
-            "message": "Live monitoring unavailable in this environment",
-            "detail": str(e),
-        }), 501
+            "mode": "live",
+            "message": "Live camera monitoring started — a window opens on this device.",
+        })
 
-    threading.Thread(target=run_monitoring, daemon=True).start()
-
-    return jsonify({"message": "Monitoring Started"})
+    # No webcam (e.g. cloud / Render): run the demo analysis so the feature
+    # still produces visible results in the dashboard.
+    detections = demo_analyze(source="live")
+    high = sum(1 for d in detections if d["risk"] == "HIGH")
+    return jsonify({
+        "mode": "demo",
+        "message": f"Demo monitoring — {len(detections)} events, {high} alert(s)",
+        "detections": detections,
+    })
 
 
 @app.route("/video", methods=["POST"])
 def video():
-    try:
+    file = request.files.get("file")
+    if file is None or not file.filename:
+        return jsonify({"message": "No video file was uploaded"}), 400
+
+    # If the CV stack is installed (local full install), run the ORIGINAL
+    # frame-by-frame analysis — it opens an analysis window on that device.
+    if _cv_available():
         from backend.video_processor import process_video
-    except Exception as e:
+        config.ensure_data_dir()
+        upload_path = os.path.join(config.DATA_DIR, "uploaded.mp4")
+        file.save(upload_path)
+        threading.Thread(target=process_video, args=(upload_path,), daemon=True).start()
         return jsonify({
-            "message": "Video analysis unavailable in this environment",
-            "detail": str(e),
-        }), 501
+            "mode": "live",
+            "message": "Video analysis started — results appear in Reports.",
+        })
 
-    file = request.files["file"]
-
-    upload_path = os.path.join(config.DATA_DIR, "uploaded.mp4")
-    config.ensure_data_dir()
-    file.save(upload_path)
-
-    threading.Thread(
-        target=process_video,
-        args=(upload_path,),
-        daemon=True,
-    ).start()
-
-    return jsonify({"message": "Video Processing Started"})
+    # No CV stack (e.g. cloud / Render): demo analysis with visible results.
+    detections = demo_analyze(source="video", name=file.filename)
+    high = sum(1 for d in detections if d["risk"] == "HIGH")
+    return jsonify({
+        "mode": "demo",
+        "message": f"Demo analysis — {len(detections)} activities, {high} alert(s)",
+        "detections": detections,
+    })
 
 
 # ================= REPORT =================
