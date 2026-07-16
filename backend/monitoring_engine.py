@@ -273,22 +273,26 @@ def _run_monitoring():
             color=(0,255,255)
 
 
+        h, w = frame.shape[:2]
+
+        # Bottom status bar (always visible)
+        cv2.rectangle(frame, (0, h - 44), (w, h), (0, 0, 0), -1)
         cv2.putText(
-
-            frame,
-
-            activity+" | "+risk,
-
-            (10,40),
-
-            cv2.FONT_HERSHEY_SIMPLEX,
-
-            1,
-
-            color,
-
-            2
+            frame, f"{activity}  |  RISK: {risk}", (16, h - 14),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2,
         )
+        cv2.putText(
+            frame, "Argus AI Live  -  press ESC or close window to stop",
+            (16, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (200, 200, 200), 1,
+        )
+
+        # Prominent red ALERT banner on high risk
+        if risk == "HIGH":
+            cv2.rectangle(frame, (0, 40), (w, 84), (0, 0, 200), -1)
+            cv2.putText(
+                frame, f"!! ALERT: {activity} !!", (16, 72),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2,
+            )
 
 
         cv2.imshow(WINDOW_NAME, frame)

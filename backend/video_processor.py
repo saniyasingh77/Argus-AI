@@ -65,6 +65,14 @@ def _process_video(path):
     pose = mp_pose.Pose()
 
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_AUTOSIZE)
+    try:
+        cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_TOPMOST, 1)  # bring to front
+    except Exception:
+        pass
+
+    # Play roughly at the video's real speed so it is watchable.
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_delay = int(1000 / fps) if fps and fps > 0 else 30
 
     while True:
 
@@ -117,20 +125,31 @@ def _process_video(path):
         elif risk == "MEDIUM":
             color = (0, 255, 255)
 
+        h, w = frame.shape[:2]
+
+        # Bottom status bar (always visible): current activity + risk
+        cv2.rectangle(frame, (0, h - 44), (w, h), (0, 0, 0), -1)
         cv2.putText(
-            frame,
-            activity + " | " + risk,
-            (20, 40),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            color,
-            2,
+            frame, f"{activity}  |  RISK: {risk}", (16, h - 14),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2,
         )
+        cv2.putText(
+            frame, "Argus AI  -  press ESC or close window to stop",
+            (16, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (200, 200, 200), 1,
+        )
+
+        # Prominent red ALERT banner on high risk
+        if risk == "HIGH":
+            cv2.rectangle(frame, (0, 40), (w, 84), (0, 0, 200), -1)
+            cv2.putText(
+                frame, f"!! ALERT: {activity} !!", (16, 72),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2,
+            )
 
         cv2.imshow(WINDOW_NAME, frame)
 
-        # Exit on 'q' or ESC
-        key = cv2.waitKey(25) & 0xFF
+        # Exit on 'q' or ESC (waitKey also paces playback to real time)
+        key = cv2.waitKey(frame_delay) & 0xFF
         if key == ord("q") or key == 27:
             break
 
